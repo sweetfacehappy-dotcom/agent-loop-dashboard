@@ -10,7 +10,7 @@ A loop is a saved definition containing:
 - mode, e.g. review, implementation, triage, summarization;
 - allowed actions;
 - approval policy;
-- runtime configuration.
+- runtime configuration, including a selectable `model_label` mapped to an Anthropic model id.
 
 ## Context ingestion
 
@@ -20,6 +20,16 @@ The backend should construct compact context packs from:
 - linked GitLab MRs, commits, diffs, and discussions;
 - existing review feedback;
 - loop-specific instructions.
+
+## Agent runtime
+
+The backend uses the Anthropic SDK behind an internal adapter. Custom endpoints are configured through:
+
+- `ANTHROPIC_BASE_URL`
+- `ANTHROPIC_AUTH_TOKEN`
+- `ANTHROPIC_MODEL_LABELS`, e.g. `fast=claude-haiku,smart=claude-sonnet`
+
+Loops store a `model_label`, not a secret or raw runtime config. On fire, the backend resolves the label to a concrete model id and creates an agent run record. The LLM proposes actions; the backend remains the side-effect and approval boundary.
 
 ## Side effects
 

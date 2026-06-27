@@ -77,11 +77,14 @@ def test_fire_loop_returns_updated_loop_for_optimistic_ui_updates(client):
 
     assert fire_response.status_code == 200
     fired = fire_response.json()
-    assert fired["id"] == created["id"]
-    assert fired["name"] == "Fast loop"
-    assert fired["status"] == "running"
-    assert fired["updated_at"] >= created["updated_at"]
-    assert client.get(f"/loops/{created['id']}").json() == fired
+    loop = fired["loop"]
+    assert loop["id"] == created["id"]
+    assert loop["name"] == "Fast loop"
+    assert loop["status"] == "running"
+    assert loop["updated_at"] >= created["updated_at"]
+    assert fired["run"]["loop_id"] == created["id"]
+    assert fired["run"]["dry_run"] is False
+    assert client.get(f"/loops/{created['id']}").json() == loop
 
 
 def test_unknown_loop_operations_return_404(client):

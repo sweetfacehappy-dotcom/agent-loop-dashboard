@@ -38,6 +38,19 @@ docker compose up --build
 - API: http://localhost:8000
 - API docs: http://localhost:8000/docs
 - Connector status: http://localhost:8000/connectors/status
+- Runtime status: http://localhost:8000/runtime/status
+
+## Anthropic runtime configuration
+
+The backend is configured for the official Anthropic SDK using custom endpoint environment variables:
+
+```env
+ANTHROPIC_BASE_URL=http://host.docker.internal:9000
+ANTHROPIC_AUTH_TOKEN=...
+ANTHROPIC_MODEL_LABELS=fast=claude-3-5-haiku-latest,smart=claude-3-5-sonnet-latest
+```
+
+`ANTHROPIC_MODEL_LABELS` is a comma-separated `label=model` map. The first label becomes the default for new loops, and each loop stores its selected `model_label` so runs can choose models per loop without exposing raw credentials.
 
 ## Screenshots
 
