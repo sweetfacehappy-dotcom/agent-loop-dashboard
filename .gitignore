@@ -1,0 +1,21 @@
+# Secrets / local env
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+.next/
+*.tsbuildinfo
+
+# Runtime
+*.log
+.DS_Store
+postgres-data/

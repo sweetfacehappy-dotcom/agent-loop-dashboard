@@ -1,0 +1,50 @@
+# Agent Loop Dashboard
+
+Dashboard for monitoring, creating, and firing off bounded AI agent loops that work across self-hosted Jira and GitLab.
+
+## Product idea
+
+A Docker Compose-hosted internal tool that can:
+
+- Pull Jira tickets from a self-hosted Jira instance.
+- Read Jira ticket comments and GitLab MR comments as loop context.
+- Create and review GitLab merge requests.
+- Start/stop/monitor agent loops.
+- Store loop definitions, runs, events, context snapshots, and review outcomes.
+- Provide Loop CRUD via API and dashboard.
+
+## Architecture
+
+```text
+User
+  -> Node/React dashboard
+  -> FastAPI backend / BFF
+  -> Postgres
+  -> Jira connector
+  -> GitLab connector
+  -> Agent runtime adapter
+```
+
+The backend owns auth, policy, loop state, audit events, connector calls, and approval boundaries. The agent runtime receives compact context packs and returns proposed actions/reviews.
+
+## Quick start
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+- Web: http://localhost:5173
+- API: http://localhost:8000
+- API docs: http://localhost:8000/docs
+
+## Current status
+
+This repo is a v0 scaffold: API contracts, Docker Compose topology, connector boundaries, and initial dashboard shell.
+
+## Safety model
+
+- Secrets stay in `.env`, never committed.
+- External side effects should be approval-gated.
+- Agent loops should run with bounded capabilities per loop type.
+- Jira/GitLab writes should be performed by backend connectors, not arbitrary agent tools.
