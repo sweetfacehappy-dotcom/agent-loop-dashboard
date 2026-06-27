@@ -39,6 +39,7 @@ docker compose up --build
 - API docs: http://localhost:8000/docs
 - Connector status: http://localhost:8000/connectors/status
 - Runtime status: http://localhost:8000/runtime/status
+- Model label CRUD: http://localhost:8000/runtime/model-labels
 
 ## Anthropic runtime configuration
 
@@ -50,7 +51,7 @@ ANTHROPIC_AUTH_TOKEN=...
 ANTHROPIC_MODEL_LABELS=fast=claude-3-5-haiku-latest,smart=claude-3-5-sonnet-latest
 ```
 
-`ANTHROPIC_MODEL_LABELS` is a comma-separated `label=model` map. The first label becomes the default for new loops, and each loop stores its selected `model_label` so runs can choose models per loop without exposing raw credentials.
+`ANTHROPIC_MODEL_LABELS` is a comma-separated `label=model` map. It seeds the dashboard config page at backend startup/runtime refresh. Model labels can then be added, edited, and deleted from the dashboard config panel through `/runtime/model-labels`. The first configured label becomes the default for new loops, and each loop stores its selected `model_label` so runs can choose models per loop without exposing raw credentials.
 
 ## Screenshots
 

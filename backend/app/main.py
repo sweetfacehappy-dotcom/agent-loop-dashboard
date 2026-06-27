@@ -39,7 +39,11 @@ class AgentRunStatus(str, Enum):
     failed = "failed"
 
 
-def parse_model_labels(raw: str | None = None) -> dict[str, str]:
+model_labels_config: dict[str, str] | None = None
+model_labels_source: str | None = None
+
+
+def parse_model_label_env(raw: str | None = None) -> dict[str, str]:
     raw = raw if raw is not None else os.getenv("ANTHROPIC_MODEL_LABELS")
     if not raw:
         return {}
@@ -57,6 +61,22 @@ def parse_model_labels(raw: str | None = None) -> dict[str, str]:
         if label and model:
             labels[label] = model
     return labels
+
+
+def parse_model_labels(raw: str | None = None) -> dict[str, str]:
+    if raw is not None:
+        return parse_model_label_env(raw)
+    return current_model_labels()
+
+
+def current_model_labels() -> dict[str, str]:
+    """Return editable runtime model labels, seeded from environment config."""
+    global model_labels_config, model_labels_source
+    raw = os.getenv("ANTHROPIC_MODEL_LABELS")
+    if model_labels_config is None or model_labels_source != raw:
+        model_labels_config = parse_model_label_env(raw)
+        model_labels_source = raw
+    return model_labels_config
 
 
 def default_model_label() -> str:
@@ -102,6 +122,20 @@ class FireLoopRequest(BaseModel):
     context_limit: int = Field(default=20, ge=1, le=100)
 
 
+class ModelLabelCreate(BaseModel):
+    label: str = Field(min_length=1, pattern=r"^[A-Za-z0-9_-]+$")
+    model: str = Field(min_length=1)
+
+
+class ModelLabelUpdate(BaseModel):
+    model: str = Field(min_length=1)
+
+
+class ModelLabelResponse(BaseModel):
+    label: str
+    model: str
+
+
 class AgentRun(BaseModel):
     id: str
     loop_id: str
@@ -138,14 +172,16 @@ def connector_status(prefix: str, required: list[str]) -> dict:
 
 
 def anthropic_runtime_status() -> dict:
-    required = ["ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_MODEL_LABELS"]
-    missing = [name for name in required if not os.getenv(name)]
+    model_labels = current_model_labels()
+    missing = [name for name in ["ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN"] if not os.getenv(name)]
+    if not model_labels:
+        missing.append("ANTHROPIC_MODEL_LABELS")
     return {
         "provider": "anthropic",
         "configured": not missing,
         "base_url": os.getenv("ANTHROPIC_BASE_URL"),
         "missing": missing,
-        "model_labels": parse_model_labels(),
+        "model_labels": model_labels,
     }
 
 
@@ -206,6 +242,37 @@ def get_connector_status():
 @app.get("/runtime/status")
 def get_runtime_status():
     return anthropic_runtime_status()
+
+
+@app.get("/runtime/model-labels", response_model=dict[str, str])
+def list_model_labels():
+    return current_model_labels()
+
+
+@app.post("/runtime/model-labels", response_model=ModelLabelResponse, status_code=201)
+def create_model_label(payload: ModelLabelCreate):
+    labels = current_model_labels()
+    if payload.label in labels:
+        raise HTTPException(status_code=409, detail="Model label already exists")
+    labels[payload.label] = payload.model
+    return ModelLabelResponse(label=payload.label, model=payload.model)
+
+
+@app.put("/runtime/model-labels/{label}", response_model=ModelLabelResponse)
+def update_model_label(label: str, payload: ModelLabelUpdate):
+    labels = current_model_labels()
+    if label not in labels:
+        raise HTTPException(status_code=404, detail="Model label not found")
+    labels[label] = payload.model
+    return ModelLabelResponse(label=label, model=payload.model)
+
+
+@app.delete("/runtime/model-labels/{label}", status_code=204)
+def delete_model_label(label: str):
+    labels = current_model_labels()
+    if label not in labels:
+        raise HTTPException(status_code=404, detail="Model label not found")
+    del labels[label]
 
 
 @app.get("/loops", response_model=list[Loop])

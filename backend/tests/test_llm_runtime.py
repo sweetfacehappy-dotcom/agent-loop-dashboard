@@ -45,6 +45,74 @@ def test_runtime_status_reports_missing_anthropic_config_without_leaking_token(m
     assert "token" not in str(body).lower().replace("anthropic_auth_token", "")
 
 
+def test_model_label_crud_updates_runtime_configuration(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://llm-gateway.example.internal")
+    monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "secret-token")
+    monkeypatch.setenv("ANTHROPIC_MODEL_LABELS", "fast=claude-haiku")
+    loops.clear()
+    client = TestClient(app)
+
+    assert client.get("/runtime/model-labels").json() == {"fast": "claude-haiku"}
+
+    create_response = client.post(
+        "/runtime/model-labels",
+        json={"label": "smart", "model": "claude-sonnet"},
+    )
+    assert create_response.status_code == 201
+    assert create_response.json() == {"label": "smart", "model": "claude-sonnet"}
+    assert client.get("/runtime/status").json()["model_labels"] == {
+        "fast": "claude-haiku",
+        "smart": "claude-sonnet",
+    }
+
+    update_response = client.put(
+        "/runtime/model-labels/smart",
+        json={"model": "claude-opus"},
+    )
+    assert update_response.status_code == 200
+    assert update_response.json() == {"label": "smart", "model": "claude-opus"}
+
+    created_loop = client.post("/loops", json={"name": "Smart model loop", "model_label": "smart"})
+    assert created_loop.status_code == 201
+    assert created_loop.json()["model_label"] == "smart"
+
+    delete_response = client.delete("/runtime/model-labels/smart")
+    assert delete_response.status_code == 204
+    assert client.get("/runtime/model-labels").json() == {"fast": "claude-haiku"}
+
+
+def test_model_label_crud_rejects_duplicates_and_unknown_deletes(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_MODEL_LABELS", "fast=claude-haiku")
+    loops.clear()
+    client = TestClient(app)
+
+    duplicate_response = client.post(
+        "/runtime/model-labels",
+        json={"label": "fast", "model": "claude-other"},
+    )
+    missing_update = client.put("/runtime/model-labels/missing", json={"model": "claude-opus"})
+    missing_delete = client.delete("/runtime/model-labels/missing")
+
+    assert duplicate_response.status_code == 409
+    assert missing_update.status_code == 404
+    assert missing_delete.status_code == 404
+
+
+def test_dashboard_created_model_labels_satisfy_runtime_status(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://llm-gateway.example.internal")
+    monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "secret-token")
+    monkeypatch.delenv("ANTHROPIC_MODEL_LABELS", raising=False)
+    loops.clear()
+    client = TestClient(app)
+
+    client.post("/runtime/model-labels", json={"label": "smart", "model": "claude-sonnet"})
+
+    status = client.get("/runtime/status").json()
+    assert status["configured"] is True
+    assert status["missing"] == []
+    assert status["model_labels"] == {"smart": "claude-sonnet"}
+
+
 def test_loop_model_label_defaults_and_can_be_selected_per_loop(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://llm-gateway.example.internal")
     monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "secret-token")

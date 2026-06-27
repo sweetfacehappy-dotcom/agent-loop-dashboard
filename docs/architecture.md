@@ -27,9 +27,9 @@ The backend uses the Anthropic SDK behind an internal adapter. Custom endpoints 
 
 - `ANTHROPIC_BASE_URL`
 - `ANTHROPIC_AUTH_TOKEN`
-- `ANTHROPIC_MODEL_LABELS`, e.g. `fast=claude-haiku,smart=claude-sonnet`
+- `ANTHROPIC_MODEL_LABELS`, e.g. `fast=claude-haiku,smart=claude-sonnet`, as the initial editable model-label seed
 
-Loops store a `model_label`, not a secret or raw runtime config. On fire, the backend resolves the label to a concrete model id and creates an agent run record. The LLM proposes actions; the backend remains the side-effect and approval boundary.
+The dashboard config page exposes CRUD for model labels through `/runtime/model-labels`. Loops store a `model_label`, not a secret or raw runtime config. On fire, the backend resolves the label to a concrete model id and creates an agent run record. The LLM proposes actions; the backend remains the side-effect and approval boundary.
 
 ## Side effects
 

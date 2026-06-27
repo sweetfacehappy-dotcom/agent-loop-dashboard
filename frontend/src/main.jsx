@@ -7,7 +7,14 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000
 async function apiRequest(path, options) {
   const res = await fetch(`${API_BASE_URL}${path}`, options);
   if (!res.ok) {
-    throw new Error(`API request failed: ${res.status}`);
+    let detail = '';
+    try {
+      const body = await res.json();
+      detail = body.detail ? `: ${typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail)}` : '';
+    } catch (_err) {
+      detail = '';
+    }
+    throw new Error(`API request failed: ${res.status}${detail}`);
   }
   if (res.status === 204) {
     return null;
@@ -20,10 +27,24 @@ function App() {
   const [runtime, setRuntime] = useState({model_labels: {}});
   const [name, setName] = useState('MR review loop');
   const [modelLabel, setModelLabel] = useState('');
+  const [newLabel, setNewLabel] = useState('');
+  const [newModel, setNewModel] = useState('');
   const [lastRun, setLastRun] = useState(null);
   const [error, setError] = useState('');
 
   const modelOptions = useMemo(() => Object.entries(runtime.model_labels ?? {}), [runtime]);
+
+  function syncRuntime(runtimeStatus) {
+    setRuntime(runtimeStatus);
+    const defaultLabel = Object.keys(runtimeStatus.model_labels ?? {})[0] ?? '';
+    setModelLabel(current => current && runtimeStatus.model_labels?.[current] ? current : defaultLabel);
+  }
+
+  async function loadRuntimeStatus() {
+    const runtimeStatus = await apiRequest('/runtime/status');
+    syncRuntime(runtimeStatus);
+    return runtimeStatus;
+  }
 
   async function loadInitialState() {
     try {
@@ -33,9 +54,7 @@ function App() {
         apiRequest('/runtime/status')
       ]);
       setLoops(loadedLoops);
-      setRuntime(runtimeStatus);
-      const defaultLabel = Object.keys(runtimeStatus.model_labels ?? {})[0] ?? '';
-      setModelLabel(current => current || defaultLabel);
+      syncRuntime(runtimeStatus);
     } catch (err) {
       setError(err.message);
     }
@@ -56,6 +75,46 @@ function App() {
         body: JSON.stringify(payload)
       });
       setLoops(currentLoops => [...currentLoops, created]);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function createModelLabel() {
+    try {
+      setError('');
+      await apiRequest('/runtime/model-labels', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({label: newLabel.trim(), model: newModel.trim()})
+      });
+      setNewLabel('');
+      setNewModel('');
+      await loadRuntimeStatus();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function updateModelLabel(label, model) {
+    try {
+      setError('');
+      await apiRequest(`/runtime/model-labels/${encodeURIComponent(label)}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({model: model.trim()})
+      });
+      await loadRuntimeStatus();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function deleteModelLabel(label) {
+    try {
+      setError('');
+      await apiRequest(`/runtime/model-labels/${encodeURIComponent(label)}`, {method: 'DELETE'});
+      await loadRuntimeStatus();
     } catch (err) {
       setError(err.message);
     }
@@ -86,19 +145,37 @@ function App() {
     </section>
     {error && <section className="panel error">{error}</section>}
     <section className="panel runtime">
+      <p className="eyebrow">Config</p>
       <h2>Anthropic runtime</h2>
       <p>Status: <strong>{runtime.configured ? 'configured' : 'missing config'}</strong></p>
       <p>Endpoint: {runtime.base_url || 'not configured'}</p>
-      <p>Model labels: {modelOptions.length ? modelOptions.map(([label, model]) => `${label} → ${model}`).join(', ') : 'none configured'}</p>
+      <p>Model labels are managed here and available immediately when creating loops.</p>
+      <div className="model-label-list">
+        {modelOptions.length === 0 && <p>None configured yet.</p>}
+        {modelOptions.map(([label, model]) => <ModelLabelRow
+          key={label}
+          label={label}
+          model={model}
+          onSave={updateModelLabel}
+          onDelete={deleteModelLabel}
+        />)}
+      </div>
+      <div className="form-row">
+        <input aria-label="New label" placeholder="label, e.g. smart" value={newLabel} onChange={e => setNewLabel(e.target.value)} />
+        <input aria-label="New model" placeholder="model id, e.g. claude-sonnet" value={newModel} onChange={e => setNewModel(e.target.value)} />
+        <button onClick={createModelLabel} disabled={!newLabel.trim() || !newModel.trim()}>Add model label</button>
+      </div>
     </section>
     <section className="panel">
       <h2>Create loop</h2>
-      <input value={name} onChange={e => setName(e.target.value)} />
-      <select value={modelLabel} onChange={e => setModelLabel(e.target.value)}>
-        {modelOptions.length === 0 && <option value="">default</option>}
-        {modelOptions.map(([label, model]) => <option value={label} key={label}>{label} — {model}</option>)}
-      </select>
-      <button onClick={createLoop}>Create</button>
+      <div className="form-row">
+        <input aria-label="Loop name" value={name} onChange={e => setName(e.target.value)} />
+        <select aria-label="Loop model label" value={modelLabel} onChange={e => setModelLabel(e.target.value)}>
+          {modelOptions.length === 0 && <option value="">default</option>}
+          {modelOptions.map(([label, model]) => <option value={label} key={label}>{label} — {model}</option>)}
+        </select>
+        <button onClick={createLoop}>Create</button>
+      </div>
     </section>
     {lastRun && <section className="panel">
       <h2>Last dry run</h2>
@@ -115,6 +192,19 @@ function App() {
       </article>)}
     </section>
   </main>;
+}
+
+function ModelLabelRow({label, model, onSave, onDelete}) {
+  const [draftModel, setDraftModel] = useState(model);
+
+  useEffect(() => { setDraftModel(model); }, [model]);
+
+  return <div className="model-label-row">
+    <strong>{label}</strong>
+    <input aria-label={`Model for ${label}`} value={draftModel} onChange={e => setDraftModel(e.target.value)} />
+    <button onClick={() => onSave(label, draftModel)} disabled={!draftModel.trim() || draftModel === model}>Save</button>
+    <button className="secondary danger" onClick={() => onDelete(label)}>Delete</button>
+  </div>;
 }
 
 createRoot(document.getElementById('root')).render(<App />);

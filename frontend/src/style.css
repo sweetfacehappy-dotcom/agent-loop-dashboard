@@ -6,8 +6,15 @@ main { max-width: 1100px; margin: 0 auto; padding: 48px 24px; }
 h1 { font-size: 44px; max-width: 820px; line-height: 1; }
 .panel, .card { margin-top: 24px; padding: 24px; border-radius: 18px; background: #111827; border: 1px solid #334155; }
 .error { border-color: #f87171; color: #fecaca; }
-input, select { width: min(420px, 100%); padding: 12px; margin-right: 12px; border-radius: 10px; border: 1px solid #475569; background: #020617; color: white; }
+input, select { width: min(420px, 100%); padding: 12px; border-radius: 10px; border: 1px solid #475569; background: #020617; color: white; }
 button { padding: 12px 16px; border: 0; border-radius: 10px; background: #38bdf8; color: #082f49; font-weight: 700; cursor: pointer; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+button.secondary { background: #334155; color: #e5e7eb; }
+button.danger { background: #7f1d1d; color: #fee2e2; }
 .runtime p { margin: 8px 0; }
+.form-row, .model-label-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 16px; }
+.model-label-list { display: grid; gap: 12px; margin-top: 16px; }
+.model-label-row { padding: 12px; border: 1px solid #334155; border-radius: 12px; background: #0f172a; }
+.model-label-row strong { min-width: 120px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
 .card button { margin-top: 16px; }
