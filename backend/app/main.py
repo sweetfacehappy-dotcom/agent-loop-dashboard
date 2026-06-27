@@ -88,16 +88,11 @@ def delete_loop(loop_id: str):
         raise HTTPException(status_code=404, detail="Loop not found")
     del loops[loop_id]
 
-@app.post("/loops/{loop_id}/fire")
+@app.post("/loops/{loop_id}/fire", response_model=Loop)
 def fire_loop(loop_id: str, payload: FireLoopRequest):
     if loop_id not in loops:
         raise HTTPException(status_code=404, detail="Loop not found")
     loop = loops[loop_id]
     loop.status = LoopStatus.running if not payload.dry_run else LoopStatus.ready
     loop.updated_at = now()
-    return {
-        "loop_id": loop_id,
-        "dry_run": payload.dry_run,
-        "status": loop.status,
-        "message": "Context pack and agent dispatch would be created here."
-    }
+    return loop
