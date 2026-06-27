@@ -39,6 +39,16 @@ docker compose up --build
 - API docs: http://localhost:8000/docs
 - Connector status: http://localhost:8000/connectors/status
 
+## Screenshots
+
+Dashboard overview:
+
+![Agent Loop Dashboard overview](docs/screenshots/dashboard-overview.png)
+
+Dashboard with a loop in ready state:
+
+![Agent Loop Dashboard ready state](docs/screenshots/dashboard-ready-state.png)
+
 ## Tests and build
 
 Backend API tests:
