@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from enum import Enum
@@ -36,9 +37,24 @@ loops: dict[str, Loop] = {}
 def now() -> datetime:
     return datetime.now(timezone.utc)
 
+def connector_status(prefix: str, required: list[str]) -> dict:
+    missing = [name for name in required if not os.getenv(name)]
+    return {
+        "base_url": os.getenv(f"{prefix}_BASE_URL"),
+        "configured": not missing,
+        "missing": missing,
+    }
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+@app.get("/connectors/status")
+def get_connector_status():
+    return {
+        "jira": connector_status("JIRA", ["JIRA_BASE_URL", "JIRA_USERNAME", "JIRA_API_TOKEN"]),
+        "gitlab": connector_status("GITLAB", ["GITLAB_BASE_URL", "GITLAB_TOKEN"]),
+    }
 
 @app.get("/loops", response_model=list[Loop])
 def list_loops():

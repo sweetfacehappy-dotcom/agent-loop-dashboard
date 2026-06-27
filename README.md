@@ -37,6 +37,14 @@ docker compose up --build
 - Web: http://localhost:5173
 - API: http://localhost:8000
 - API docs: http://localhost:8000/docs
+- Connector status: http://localhost:8000/connectors/status
+
+## Backend tests
+
+```bash
+cd backend
+uv run --with fastapi==0.115.6 --with 'uvicorn[standard]==0.34.0' --with pydantic-settings==2.7.1 --with httpx==0.28.1 --with pytest --with python-gitlab==5.6.0 --with 'psycopg[binary]==3.2.3' -- python -m pytest tests -q
+```
 
 ## Current status
 
