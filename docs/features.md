@@ -40,7 +40,8 @@ This document is the feature inventory and lightweight roadmap for Agent Loop Da
 - **Status**: Implemented
 - **Description**: Dashboard form for creating loop definitions.
 - **Current behavior**:
-  - Creates a loop with a name, default review description, review mode, and selected model label.
+  - Creates a loop with a name, model label, and structured prompt/agent-loop setup.
+  - Captures description, objective, trigger, input sources, instructions, constraints, allowed actions, output format, success criteria, stop conditions, and escalation policy.
   - Select options come from the editable runtime model-label map.
   - If labels exist, the first configured label becomes the default selection.
 - **Primary API**: `POST /loops`
@@ -124,6 +125,16 @@ This document is the feature inventory and lightweight roadmap for Agent Loop Da
   - `gitlab_project_id`
   - `mode`
   - `model_label`
+  - `objective`
+  - `trigger`
+  - `input_sources`
+  - `instructions`
+  - `constraints`
+  - `allowed_actions`
+  - `output_format`
+  - `success_criteria`
+  - `stop_conditions`
+  - `escalation_policy`
   - `status`
   - `created_at`
   - `updated_at`
@@ -149,6 +160,7 @@ This document is the feature inventory and lightweight roadmap for Agent Loop Da
   - For dry runs, sets run status to `planned` and loop status to `ready`.
   - For non-dry runs, sets run status to `queued` and loop status to `running`.
   - Returns both the updated loop and the run record.
+  - Adds a `prompt_snapshot` assembled from the loop setup components for visibility and future LLM dispatch.
   - Does not dispatch to the LLM for dry runs.
 - **Not yet implemented**:
   - Real asynchronous job queue.
@@ -211,15 +223,15 @@ This document is the feature inventory and lightweight roadmap for Agent Loop Da
 
 ### Bounded loop model
 
-- **Status**: Scaffolded
+- **Status**: Implemented
 - **Description**: The app models agent work as saved loop definitions with controlled scope and runtime configuration.
 - **Current behavior**:
-  - Loop schema includes name, description, Jira query, GitLab project ID, mode, and model label.
+  - Loop schema includes name, description, Jira query, GitLab project ID, mode, model label, objective, trigger, input sources, instructions, constraints, allowed actions, output format, success criteria, stop conditions, and escalation policy.
   - Status lifecycle enum exists: `draft`, `ready`, `running`, `paused`, `completed`, `failed`.
+  - See `docs/loop-design.md` for the source-backed design rationale.
 - **Planned behavior**:
-  - Store allowed actions per loop.
-  - Store approval policy per loop.
-  - Support loop-specific instructions.
+  - Convert allowed actions into typed, approval-gated backend actions.
+  - Support loop-specific instructions with reusable templates.
   - Support richer loop modes such as implementation, triage, and summarization.
 
 ### Context ingestion
@@ -294,10 +306,10 @@ This document is the feature inventory and lightweight roadmap for Agent Loop Da
 
 - Persist loops, runs, and model labels in Postgres.
 - Add run history APIs and dashboard views.
-- Implement real Anthropic dispatch for non-dry runs.
+- Implement real Anthropic dispatch for non-dry runs using the assembled prompt snapshot plus retrieved context.
 - Implement context pack construction from Jira and GitLab.
 - Add real Jira/GitLab connector health checks.
-- Add approval workflow for external side effects.
+- Convert allowed actions and escalation policy into typed approval workflow for external side effects.
 - Add loop editing/deletion controls in the dashboard, not only via API.
 - Add dashboard views for connector status and setup guidance.
 

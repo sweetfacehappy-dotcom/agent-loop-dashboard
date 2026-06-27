@@ -67,8 +67,50 @@ def test_loop_crud_lifecycle(client):
     assert client.get("/loops").json() == []
 
 
-def test_fire_loop_returns_updated_loop_for_optimistic_ui_updates(client):
-    created = client.post("/loops", json={"name": "Fast loop"}).json()
+def test_loop_setup_captures_prompt_design_components(client):
+    create_response = client.post(
+        "/loops",
+        json={
+            "name": "MR review loop",
+            "description": "Review risky merge requests",
+            "objective": "Find merge request risks before code is merged.",
+            "trigger": "Run when a merge request is opened or updated.",
+            "input_sources": "Jira ticket, GitLab MR diff, discussion comments, CI status.",
+            "instructions": "Prioritize correctness, security, and maintainability.",
+            "constraints": "Do not approve or merge code. Do not expose secrets.",
+            "allowed_actions": "Leave review comments, request human approval for risky changes.",
+            "output_format": "Markdown summary with risks, required fixes, and confidence.",
+            "success_criteria": "Every blocking risk has an actionable comment.",
+            "stop_conditions": "Stop after one complete MR review or when required context is missing.",
+            "escalation_policy": "Ask a human when confidence is low or production data is involved.",
+        },
+    )
+
+    assert create_response.status_code == 201
+    created = create_response.json()
+    assert created["objective"] == "Find merge request risks before code is merged."
+    assert created["trigger"] == "Run when a merge request is opened or updated."
+    assert created["input_sources"] == "Jira ticket, GitLab MR diff, discussion comments, CI status."
+    assert created["instructions"] == "Prioritize correctness, security, and maintainability."
+    assert created["constraints"] == "Do not approve or merge code. Do not expose secrets."
+    assert created["allowed_actions"] == "Leave review comments, request human approval for risky changes."
+    assert created["output_format"] == "Markdown summary with risks, required fixes, and confidence."
+    assert created["success_criteria"] == "Every blocking risk has an actionable comment."
+    assert created["stop_conditions"] == "Stop after one complete MR review or when required context is missing."
+    assert created["escalation_policy"] == "Ask a human when confidence is low or production data is involved."
+
+
+def test_fire_loop_includes_assembled_prompt_snapshot(client):
+    created = client.post(
+        "/loops",
+        json={
+            "name": "Fast loop",
+            "objective": "Review a merge request for release blockers.",
+            "instructions": "Be concise and cite evidence.",
+            "output_format": "Return sections: summary, blockers, next actions.",
+            "success_criteria": "All release blockers are identified.",
+        },
+    ).json()
 
     fire_response = client.post(
         f"/loops/{created['id']}/fire",
@@ -84,6 +126,9 @@ def test_fire_loop_returns_updated_loop_for_optimistic_ui_updates(client):
     assert loop["updated_at"] >= created["updated_at"]
     assert fired["run"]["loop_id"] == created["id"]
     assert fired["run"]["dry_run"] is False
+    assert "## Objective\nReview a merge request for release blockers." in fired["run"]["prompt_snapshot"]
+    assert "## Instructions\nBe concise and cite evidence." in fired["run"]["prompt_snapshot"]
+    assert "## Output format\nReturn sections: summary, blockers, next actions." in fired["run"]["prompt_snapshot"]
     assert client.get(f"/loops/{created['id']}").json() == loop
 
 

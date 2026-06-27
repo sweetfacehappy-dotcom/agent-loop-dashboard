@@ -27,6 +27,19 @@ function App() {
   const [runtime, setRuntime] = useState({model_labels: {}});
   const [name, setName] = useState('MR review loop');
   const [modelLabel, setModelLabel] = useState('');
+  const [loopSetup, setLoopSetup] = useState({
+    description: 'Review GitLab MRs using Jira/GitLab context',
+    objective: 'Find risks, missing context, and required fixes before code is merged.',
+    trigger: 'Run when a GitLab merge request is opened, updated, or ready for review.',
+    input_sources: 'Jira ticket, GitLab merge request diff, discussions, CI status, and existing review feedback.',
+    instructions: 'Be specific, cite evidence from the available context, and prioritize actionable feedback.',
+    constraints: 'Do not approve, merge, deploy, or expose secrets. Do not invent context that was not provided.',
+    allowed_actions: 'Summarize findings, propose review comments, and request human approval for risky actions.',
+    output_format: 'Markdown with sections: Summary, Blocking risks, Suggested comments, Open questions, Confidence.',
+    success_criteria: 'All blocking risks are identified and each recommendation has a clear next action.',
+    stop_conditions: 'Stop after one complete review or when required context is missing.',
+    escalation_policy: 'Escalate to a human for low confidence, production impact, security concerns, or missing requirements.'
+  });
   const [newLabel, setNewLabel] = useState('');
   const [newModel, setNewModel] = useState('');
   const [lastRun, setLastRun] = useState(null);
@@ -65,7 +78,7 @@ function App() {
       setError('');
       const payload = {
         name,
-        description: 'Review GitLab MRs using Jira/GitLab context',
+        ...loopSetup,
         mode: 'review',
         ...(modelLabel ? {model_label: modelLabel} : {})
       };
@@ -176,11 +189,28 @@ function App() {
         </select>
         <button onClick={createLoop}>Create</button>
       </div>
+      <div className="loop-setup-grid">
+        <LoopSetupField label="Description" field="description" value={loopSetup.description} onChange={setLoopSetup} />
+        <LoopSetupField label="Objective" field="objective" value={loopSetup.objective} onChange={setLoopSetup} />
+        <LoopSetupField label="Trigger" field="trigger" value={loopSetup.trigger} onChange={setLoopSetup} />
+        <LoopSetupField label="Input sources" field="input_sources" value={loopSetup.input_sources} onChange={setLoopSetup} />
+        <LoopSetupField label="Instructions" field="instructions" value={loopSetup.instructions} onChange={setLoopSetup} />
+        <LoopSetupField label="Constraints / guardrails" field="constraints" value={loopSetup.constraints} onChange={setLoopSetup} />
+        <LoopSetupField label="Allowed actions" field="allowed_actions" value={loopSetup.allowed_actions} onChange={setLoopSetup} />
+        <LoopSetupField label="Output format" field="output_format" value={loopSetup.output_format} onChange={setLoopSetup} />
+        <LoopSetupField label="Success criteria" field="success_criteria" value={loopSetup.success_criteria} onChange={setLoopSetup} />
+        <LoopSetupField label="Stop conditions" field="stop_conditions" value={loopSetup.stop_conditions} onChange={setLoopSetup} />
+        <LoopSetupField label="Escalation policy" field="escalation_policy" value={loopSetup.escalation_policy} onChange={setLoopSetup} />
+      </div>
     </section>
     {lastRun && <section className="panel">
       <h2>Last dry run</h2>
-      <p>{lastRun.summary}</p>
+        <p>{lastRun.summary}</p>
       <p>Model: {lastRun.model_label} / {lastRun.model || 'unresolved'}</p>
+      {lastRun.prompt_snapshot && <details>
+        <summary>Prompt snapshot</summary>
+        <pre>{lastRun.prompt_snapshot}</pre>
+      </details>}
     </section>}
     <section className="grid">
       {loops.map(loop => <article className="card" key={loop.id}>
@@ -192,6 +222,17 @@ function App() {
       </article>)}
     </section>
   </main>;
+}
+
+function LoopSetupField({label, field, value, onChange}) {
+  return <label className="loop-setup-field">
+    <span>{label}</span>
+    <textarea
+      aria-label={label}
+      value={value}
+      onChange={e => onChange(current => ({...current, [field]: e.target.value}))}
+    />
+  </label>;
 }
 
 function ModelLabelRow({label, model, onSave, onDelete}) {

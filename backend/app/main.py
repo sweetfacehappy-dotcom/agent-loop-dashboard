@@ -99,6 +99,16 @@ class LoopCreate(BaseModel):
     gitlab_project_id: str | None = None
     mode: str = "review"
     model_label: str | None = None
+    objective: str = ""
+    trigger: str = ""
+    input_sources: str = ""
+    instructions: str = ""
+    constraints: str = ""
+    allowed_actions: str = ""
+    output_format: str = ""
+    success_criteria: str = ""
+    stop_conditions: str = ""
+    escalation_policy: str = ""
 
     @model_validator(mode="after")
     def validate_model_label(self):
@@ -147,6 +157,7 @@ class AgentRun(BaseModel):
     base_url: str | None
     created_at: datetime
     summary: str
+    prompt_snapshot: str
 
 
 class FireLoopResponse(BaseModel):
@@ -203,6 +214,25 @@ def build_anthropic_client():
     )
 
 
+def assemble_loop_prompt(loop: Loop) -> str:
+    sections = [
+        ("Role", "You are an autonomous but bounded agent loop. Follow the loop setup exactly."),
+        ("Loop name", loop.name),
+        ("Purpose", loop.description),
+        ("Objective", loop.objective),
+        ("Trigger", loop.trigger),
+        ("Input sources", loop.input_sources),
+        ("Instructions", loop.instructions),
+        ("Constraints", loop.constraints),
+        ("Allowed actions", loop.allowed_actions),
+        ("Output format", loop.output_format),
+        ("Success criteria", loop.success_criteria),
+        ("Stop conditions", loop.stop_conditions),
+        ("Escalation policy", loop.escalation_policy),
+    ]
+    return "\n\n".join(f"## {title}\n{value}" for title, value in sections if value)
+
+
 def create_agent_run(loop: Loop, payload: FireLoopRequest) -> AgentRun:
     _, model = resolve_model_label(loop.model_label)
     runtime = anthropic_runtime_status()
@@ -221,6 +251,7 @@ def create_agent_run(loop: Loop, payload: FireLoopRequest) -> AgentRun:
             if payload.dry_run
             else "Anthropic agent run queued for dispatch."
         ),
+        prompt_snapshot=assemble_loop_prompt(loop),
     )
     runs[run.id] = run
     return run

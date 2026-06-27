@@ -53,6 +53,10 @@ ANTHROPIC_MODEL_LABELS=fast=claude-3-5-haiku-latest,smart=claude-3-5-sonnet-late
 
 `ANTHROPIC_MODEL_LABELS` is a comma-separated `label=model` map. It seeds the dashboard config page at backend startup/runtime refresh. Model labels can then be added, edited, and deleted from the dashboard config panel through `/runtime/model-labels`. The first configured label becomes the default for new loops, and each loop stores its selected `model_label` so runs can choose models per loop without exposing raw credentials.
 
+## Loop setup
+
+Loops are structured prompt/agent contracts. The dashboard captures objective, trigger, input sources, instructions, constraints, allowed actions, output format, success criteria, stop conditions, and escalation policy. When a loop is fired, the backend assembles these fields into a `prompt_snapshot` for visibility and future LLM dispatch. See `docs/loop-design.md` and `docs/features.md`.
+
 ## Screenshots
 
 Dashboard overview:
